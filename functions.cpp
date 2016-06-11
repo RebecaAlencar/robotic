@@ -31,6 +31,8 @@ MatrixXf grad_f_rl(3,2);
 MatrixXf grad_f_p(3,3);
 MatrixXf sigma(3,3);
 
+float r = 0.02;
+float b = 0.1.
 // monta o mapa
 void mount_mapa(){
 	// paredes laterais
@@ -90,6 +92,22 @@ VectorXd convert_coord_to_ind(float x, float y, float ang){
 	return v;
 }
 
+
+MatrixXf get_Cov(float delta_S_L, float delta_S_R){
+
+	MatrixXf cov(2,2);
+	cov(0,1) = cov(1,0) = 0;
+	cov(0,0) = Kr*abs(delta_S_R);
+	cov(1,1) = Kl*abs(delta_S_L);
+	return cov;
+}
+
+void Cal_sigma(float dPhiL, float dPhiR){
+	
+	MatrixXf v_cov = get_Cov(dPhiL*r, dPhiR*r);
+	sigma = grad_f_p*sigma*(grad_f_p.transpose())+grad_f_rl*v_cov*(grad_f_rl.transpose());
+}
+
 void Cal_grad_f_p(float delta_s, float teta, float delta_teta){
 
 	grad_f_p(0,0)= 1;
@@ -104,13 +122,7 @@ void Cal_grad_f_p(float delta_s, float teta, float delta_teta){
 
 }
 
-
-
-void Cal_sigma(){
-	
-}
-
-void Cal_grad_f_rl(float delta_s, float teta, float delta_teta, float b){
+void Cal_grad_f_rl(float delta_s, float teta, float delta_teta){
 
 	grad_f_rl(0,0) = ((1/2)*cos(teta+(delta_teta/2)))-((delta_s/(2*b))*sin(teta+(delta_teta/2)));
 	grad_f_rl(0,1) = ((1/2)*cos(teta+(delta_teta/2)))+((delta_s/(2*b))*sin(teta+(delta_teta/2)));
