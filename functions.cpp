@@ -24,7 +24,7 @@ const int gcell = 360/ANG_MIN;
 
 // mapa
 bool mapa[ncell][ncell];
-double belief[ncell][ncell][gcell];
+float belief[ncell][ncell][gcell];
 VectorXf coord_robo_belief(3);
 VectorXd coord_robo_mapa(3);
 MatrixXf grad_f_rl(3,2);
@@ -143,6 +143,47 @@ float dist_mult(VectorXf x, VectorXf mi){
 	return (1/y)*exp(z);
 }
 
+
+void action(float deltax, float deltay, float delta_teta){
+	// posicao anterior
+	int x = coord_robo_belief(0);
+	int y = coord_robo_belief(1);
+	int teta = coord_robo_belief(2);
+
+	// posicao depois da odometria
+	float newx = coord_robo_mapa(0)*TAM_CELL+deltax;
+	float newy = coord_robo_mapa(1)*TAM_CELL+deltay;
+	float newteta = coord_robo_mapa(2)*ANG_MIN+delta_teta;
+
+	// nova coordenadas
+	Vector3f new_coord(newx,newy,newteta);
+	// nova posica
+	Vector3d new_pos = convert_coord_to_ind(newx,newy,newteta);
+
+	int tam_reg = 2;
+	for(int ni=-tam_reg; ni<=tam_reg; ni++){
+		for(int nj=-tam_reg; nj<=tam_reg; nj++){
+			for(int nk=-tam_reg; nk<=tam_reg; nk++){
+				
+				Vector3f pos_reg(newx+ni*TAM_CELL,newy+nj*TAM_CELL,newteta+nk*ANG_MIN);
+				
+				float bel_reg = 0.0;
+				for(int i=-tam_reg; i<=tam_reg; i++){
+					for(int j=-tam_reg; j<=tam_reg; j++){
+						for(int k=-tam_reg; k<=tam_reg; k++){
+							bel_reg += dist_mult(pos_reg,new_coord)*belief[x+i][y+j][teta+k];
+						}
+					}
+				}
+
+				Vector3d reg_cell = convert_coord_to_ind(pos_reg(0),pos_reg(1),pos_reg(2));
+				belief[(int)reg_cell(0)][(int)reg_cell(1)][(int)reg_cell(2)] = bel_reg;
+			}
+		}
+	}
+}
+
+
 int main(){
 	// constroi o mapa
 	mount_mapa();
@@ -151,6 +192,8 @@ int main(){
 	// belief inicial
 	coord_robo_mapa = convert_coord_to_ind(x,y,ang);
 	belief[(int)coord_robo_mapa(0)][(int)coord_robo_mapa(1)][(int)coord_robo_mapa(2)] = 1.0;
+
+	// 
 }
 
 
