@@ -79,14 +79,14 @@ VectorXd convert_coord_to_ind(float x, float y, float ang){
 		y = -y+2.0;
 	}
 
-	// angulo
-	
-	ang = floor(ang/ANG_MIN);
+	if(ang < 0.0){
+		ang = 360.0 + ang;
+	}
 
 	VectorXd v(3);
-	v(0) = (int)(x/TAM_CELL);
-	v(1) = (int)(y/TAM_CELL);
-	v(2) = (int)(ang);
+	v(0) = (int)(floor(x/TAM_CELL));
+	v(1) = (int)(floor(y/TAM_CELL));
+	v(2) = (int)(floor(ang/ANG_MIN));
 	return v;
 }
 
@@ -107,7 +107,7 @@ void Cal_grad_f_p(float delta_s, float teta, float delta_teta){
 
 
 void Cal_sigma(){
-
+	
 }
 
 void Cal_grad_f_rl(float delta_s, float teta, float delta_teta, float b){
