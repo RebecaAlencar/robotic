@@ -10,7 +10,7 @@
 #define COMP_PAR_SUP 2
 #define TAM_CELL 0.125
 #define ANG_MIN 2.0
-
+#define PI 3.14
 // constantes de modelagem do erro
 #define Kr 0.2
 #define Kl 0.2
@@ -32,7 +32,9 @@ MatrixXf grad_f_p(3,3);
 MatrixXf sigma(3,3);
 
 float r = 0.02;
-float b = 0.1.
+float b = 0.1;
+
+
 // monta o mapa
 void mount_mapa(){
 	// paredes laterais
@@ -131,6 +133,14 @@ void Cal_grad_f_rl(float delta_s, float teta, float delta_teta){
 	grad_f_rl(2,0) = 1/b;
 	grad_f_rl(2,1) = -1/b;
 
+}
+
+
+float dist_mult(VectorXf x, VectorXf mi){
+
+	float y = pow((2*PI),(3/2))*pow((sigma.determinant()),1/2);
+	float z = (-1/2)*((x-mi).transpose())*(sigma.inverse())*(x-mi);
+	return (1/y)*exp(z);
 }
 
 int main(){
