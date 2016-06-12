@@ -22,27 +22,33 @@ using namespace Eigen;
 const int ncell = TAM_MAPA/TAM_CELL;
 const int gcell = 360/ANG_MIN;
 
-// mapa
+// mapa e belief
 bool mapa[ncell][ncell];
 float belief[ncell][ncell][gcell];
-VectorXf coord_robo_belief(3);
-VectorXd coord_robo_mapa(3);
+
+int pos_belief[3];// indice da posica na matriz belief
+float pos[3];// coordenadas reais no mapa
+
+// matrizes para o calculo da distribuição multivariada
 MatrixXf grad_f_rl(3,2);
 MatrixXf grad_f_p(3,3);
 MatrixXf sigma(3,3);
 
+// constantes do robõ
 float r = 0.02;
 float b = 0.1;
+
+// tamanho da região de busca no belief
+int tam_reg = 2;
 
 
 // monta o mapa
 void mount_mapa(){
 	// paredes laterais
-	int ncell = (int)(TAM_MAPA/TAM_CELL);
 	for(int i=0; i<ncell; i++){
 		mapa[0][i] = true;
 		mapa[ncell-1][i] = true;
-		mapa[i][0] = true;
+		mapa[i][0] = true;	
 		mapa[i][ncell-1] = true;
 	}
 
@@ -70,8 +76,8 @@ void print_mapa(){
 	}
 }
 
-// converte para os indices da matriz do mapa
-VectorXd convert_coord_to_ind(float x, float y, float ang){
+// converte as coordenadas reais do mapa para os indices da matriz do mapa
+void convert_coord_to_ind(int *v, float x, float y, float ang){
 	// x,y
 	if(x < 0.0 && y < 0.0 || x>0.0 && y>0.0){
 		x = x+2.0;
@@ -87,11 +93,9 @@ VectorXd convert_coord_to_ind(float x, float y, float ang){
 		ang = 360.0 + ang;
 	}
 
-	VectorXd v(3);
-	v(0) = (int)(floor(x/TAM_CELL));
-	v(1) = (int)(floor(y/TAM_CELL));
-	v(2) = (int)(floor(ang/ANG_MIN));
-	return v;
+	v[0] = (int)(floor(x/TAM_CELL));
+	v[1] = (int)(floor(y/TAM_CELL));
+	v[2] = (int)(floor(ang/ANG_MIN));
 }
 
 
@@ -136,7 +140,9 @@ void Cal_grad_f_rl(float delta_s, float teta, float delta_teta){
 }
 
 
-float dist_mult(VectorXf x, VectorXf mi){
+float dist_mult(float* n_x, float* n_mi){
+	Vector3f x(n_x[0],n_x[1],n_x[2]);
+	Vector3f mi(n_mi[0],n_mi[1],n_mi[2]);
 
 	float y = pow((2*PI),(3/2))*pow((sigma.determinant()),1/2);
 	float z = (-1/2)*((x-mi).transpose())*(sigma.inverse())*(x-mi);
@@ -146,28 +152,26 @@ float dist_mult(VectorXf x, VectorXf mi){
 
 void action(float deltax, float deltay, float delta_teta){
 	// posicao anterior
-	int x = coord_robo_belief(0);
-	int y = coord_robo_belief(1);
-	int teta = coord_robo_belief(2);
+	int x = pos_belief[0];
+	int y = pos_belief[1];
+	int teta = pos_belief[2];
 
 	// posicao depois da odometria
-	float newx = coord_robo_mapa(0)*TAM_CELL+deltax;
-	float newy = coord_robo_mapa(1)*TAM_CELL+deltay;
-	float newteta = coord_robo_mapa(2)*ANG_MIN+delta_teta;
-
-	// nova coordenadas
-	Vector3f new_coord(newx,newy,newteta);
+	float newx = pos[0]+deltax;
+	float newy = pos[1]+deltay;
+	float newteta = pos[2]+delta_teta;
 	// nova posica
-	Vector3d new_pos = convert_coord_to_ind(newx,newy,newteta);
+	convert_coord_to_ind(pos_belief,newx,newy,newteta);
+	// nova coordenadas
+	float new_coord[3] = {newx,newy,newteta};
 
-	int tam_reg = 2;
 	for(int ni=-tam_reg; ni<=tam_reg; ni++){
 		for(int nj=-tam_reg; nj<=tam_reg; nj++){
 			for(int nk=-tam_reg; nk<=tam_reg; nk++){
 				
-				Vector3f pos_reg(newx+ni*TAM_CELL,newy+nj*TAM_CELL,newteta+nk*ANG_MIN);
-				
+				float pos_reg[3] = {newx+ni*TAM_CELL,newy+nj*TAM_CELL,newteta+nk*ANG_MIN};
 				float bel_reg = 0.0;
+
 				for(int i=-tam_reg; i<=tam_reg; i++){
 					for(int j=-tam_reg; j<=tam_reg; j++){
 						for(int k=-tam_reg; k<=tam_reg; k++){
@@ -176,8 +180,9 @@ void action(float deltax, float deltay, float delta_teta){
 					}
 				}
 
-				Vector3d reg_cell = convert_coord_to_ind(pos_reg(0),pos_reg(1),pos_reg(2));
-				belief[(int)reg_cell(0)][(int)reg_cell(1)][(int)reg_cell(2)] = bel_reg;
+				int pos_aux[3];	
+				convert_coord_to_ind(pos_aux,pos_reg[0],pos_reg[1],pos_reg[2]);
+				belief[pos_aux[0]][pos_aux[1]][pos_aux[2]] = bel_reg;
 			}
 		}
 	}
@@ -185,16 +190,15 @@ void action(float deltax, float deltay, float delta_teta){
 
 
 int main(){
-	// constroi o mapa
-	mount_mapa();
 	// posição inicial do robo
 	float x = 1.5, y = 0.25, ang = 0.0;
+	// constroi o mapa
+	mount_mapa();
 	// belief inicial
-	coord_robo_mapa = convert_coord_to_ind(x,y,ang);
-	belief[(int)coord_robo_mapa(0)][(int)coord_robo_mapa(1)][(int)coord_robo_mapa(2)] = 1.0;
+	convert_coord_to_ind(pos_belief,x,y,ang);
+	belief[pos_belief[0]][pos_belief[1]][pos_belief[2]] = 1.0;
 
-	// 
-}
+}	
 
 
 
