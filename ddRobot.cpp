@@ -145,7 +145,7 @@ inline double to_deg(double radians) {
 void nextGoal(){
     goal = goal+1;
     if (goal>7){
-        goal =1;
+        goal =0;
     }
     state = 0;
 }
@@ -270,6 +270,9 @@ void convert_coord_to_ind(int *v, float x, float y, float ang){
 
 MatrixXf get_Cov(float delta_S_L, float delta_S_R){
 
+    // cout << endl << "delta_S_R: " << delta_S_R << endl;
+    // cout << endl << "delta_S_L: " << delta_S_L << endl;
+
     MatrixXf cov(2,2);
     cov(0,1) = cov(1,0) = 0;
     cov(0,0) = Kr*abs(delta_S_R);
@@ -281,6 +284,9 @@ void Cal_sigma(float dPhiL, float dPhiR){
     
     MatrixXf v_cov = get_Cov(dPhiL*r, dPhiR*r);
     sigma = grad_f_p*sigma*(grad_f_p.transpose())+grad_f_rl*v_cov*(grad_f_rl.transpose());
+
+    // cout << endl << "sigma: " << sigma << endl;
+    cout << endl << "v_cov: " << v_cov << endl;
 }
 
 void Cal_grad_f_p(float delta_s, float teta, float delta_teta){
@@ -310,12 +316,40 @@ void Cal_grad_f_rl(float delta_s, float teta, float delta_teta){
 
 
 float dist_mult(float* n_x, float* n_mi){
-    Vector3f x(n_x[0],n_x[1],n_x[2]);
-    Vector3f mi(n_mi[0],n_mi[1],n_mi[2]);
+    MatrixXf x(1,3); 
+    x(0,0) = n_x[0]; x(0,1) = n_x[1]; x(0,2) = n_x[2];
+    MatrixXf mi(1,3); 
+    mi(0,0) = n_mi[0]; mi(0,1) = n_mi[1]; mi(0,2) = n_mi[2];
 
-    float y = pow((2*PI),(3/2))*pow((sigma.determinant()),1/2);
-    float z = (-1/2)*((x-mi).transpose())*(sigma.inverse())*(x-mi);
-    return (1/y)*exp(z);
+    //Vector3f x(n_x[0],n_x[1],n_x[2]);
+    //Vector3f mi(n_mi[0],n_mi[1],n_mi[2]);
+
+    float y = pow((2*PI),(1.5))*pow((sigma.determinant()),0.5);
+    MatrixXf z = (-0.5)*(x-mi)*(sigma.inverse())*((x-mi).transpose());
+
+    cout << "x: " << x << endl;
+    cout << "mi: " << mi << endl;
+    cout << "sigma: " << sigma << endl;
+    cout << "sigma_inv: " << sigma.inverse() << endl;
+    cout << "y: " << y << endl;
+    cout << "z: " << z(0,0) << endl;
+    cout << "exp: " << exp(z(0,0)) << endl;
+    return (1.0/y)*exp(z(0,0));
+}
+
+
+
+void print_reg_belief(int *p){
+    for(int i=-tam_reg; i<=tam_reg; i++){
+        for(int j=-tam_reg; j<=tam_reg; j++){
+            for(int k=-tam_reg; k<=tam_reg; k++){
+                cout << belief[p[0]+i][p[1]+j][p[2]+k];
+            }
+            cout << endl;
+        }
+        cout << endl;
+    }
+    cout << endl << endl;
 }
 
 
@@ -331,25 +365,31 @@ void action(float deltax, float deltay, float delta_teta){
     float newteta = pos[2]+delta_teta;
     // nova posica
     convert_coord_to_ind(pos_belief,newx,newy,newteta);
+    cout << "new belief" << endl;
+    cout << pos_belief[0] << " " << pos_belief[1] << " " << pos_belief[2] << endl;
     // nova coordenadas
     float new_coord[3] = {newx,newy,newteta};
+    cout << "new_coord: " << new_coord[0] << " " << new_coord[1] << " " << new_coord[2] << endl;
 
     for(int ni=-tam_reg; ni<=tam_reg; ni++){
         for(int nj=-tam_reg; nj<=tam_reg; nj++){
             for(int nk=-tam_reg; nk<=tam_reg; nk++){
                 
                 float pos_reg[3] = {newx+ni*TAM_CELL,newy+nj*TAM_CELL,newteta+nk*ANG_MIN};
+                cout << "pos_reg: " << pos_reg[0] << " " << pos_reg[1] << " " << pos_reg[2] << endl;
                 float bel_reg = 0.0;
                 
                 for(int i=-tam_reg; i<=tam_reg; i++){
                     for(int j=-tam_reg; j<=tam_reg; j++){
                         for(int k=-tam_reg; k<=tam_reg; k++){
                             bel_reg += dist_mult(pos_reg,new_coord)*belief[x+i][y+j][teta+k];
+                            cout << "dist: " << dist_mult(pos_reg,new_coord) << endl;
+                            cout << "bel_reg: " << bel_reg << endl;
                         }
                     }
                 }
-                
-                int pos_aux[3]; 
+
+                int pos_aux[3];
                 convert_coord_to_ind(pos_aux,pos_reg[0],pos_reg[1],pos_reg[2]);
                 belief[pos_aux[0]][pos_aux[1]][pos_aux[2]] = bel_reg;
             }
@@ -416,7 +456,10 @@ int main(int argc, char* argv[]) {
 
         // posicao inicial
         pos[0] = 1.52; pos[1] = 0.25; pos[2] = 1.09;
+        convert_coord_to_ind(pos_belief,pos[0],pos[1],pos[2]);
+        belief[pos_belief[0]][pos_belief[1]][pos_belief[2]] = 1.0;
 
+        int count=0;
         //While is connected:
         while (simxGetConnectionId(clientID) != -1) {
             if(state == 2){
@@ -428,7 +471,7 @@ int main(int argc, char* argv[]) {
             
             //Read current position:
             //simxFloat pos[3]; //[x,y,theta] in [cm cm rad]
-            //getPosition(clientID, pos);
+            getPosition(clientID, pos);
 
             //Read simulation time of the last command:
             simxInt time = getSimTimeMs(clientID); //Simulation time in ms or 0 if sim is not running
@@ -451,19 +494,32 @@ int main(int argc, char* argv[]) {
             // erro de odometria
             Cal_grad_f_p(delta_s, teta, delta_teta);
             Cal_grad_f_rl(delta_s, teta, delta_teta);
+            if(dPhiL==0.0 && dPhiR==0.0) continue;
             Cal_sigma( dPhiL,  dPhiR);
-            
+        
+            cout << "pos: " << pos_belief[0] << " " << pos_belief[1] << " " << pos_belief[2] << endl;
+            if(count!=0)    print_reg_belief(pos_belief);
             // passo de acao
-            //action(delta_x, delta_y, delta_teta);
+            action(delta_x, delta_y, delta_teta);
+            if(count!=0)    print_reg_belief(pos_belief);
 
             //Set new target speeds: robot going in a circle:
-            simxFloat phiL = 5; //rad/s
-            simxFloat phiR = 20; //rad/s
-            setTargetSpeed(clientID, phiL, phiR);
+            //simxFloat phiL = 5; //rad/s
+            //simxFloat phiR = 20; //rad/s
             motionControl(clientID, phiL, phiR);
+            setTargetSpeed(clientID, phiL, phiR);
 
             //Let some time for V-REP do its work:
             extApi_sleepMs(2);
+
+            if(count++ > 1){
+                //Stop the robot and disconnect from V-Rep;
+                setTargetSpeed(clientID, 0, 0);
+                simxPauseSimulation(clientID, simx_opmode_oneshot_wait);
+                simxFinish(clientID);
+                break;
+            }
+        
         }
         
         //Stop the robot and disconnect from V-Rep;
