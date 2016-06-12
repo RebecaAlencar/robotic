@@ -2,7 +2,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <math.h>
-#include <Eigen/Dense>
+#include "Eigen/Dense"
 
 // medidas do mapa em metros
 #define TAM_MAPA 4
