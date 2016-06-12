@@ -158,6 +158,7 @@ void motionControl(int clientID, simxFloat &phiL, simxFloat &phiR)
     simxFloat theta, beta, alpha;
     
     //Localizacao atual do robo [x, y, z]
+
     getPosition(clientID, pos);
     
     //Angulo atual do robo
@@ -414,7 +415,7 @@ int main(int argc, char* argv[]) {
         printf("Simulação iniciada.\n");
 
         // posicao inicial
-        //pos[0] = 1.52; pos[1] = 0.25; pos[2] = 0.0;
+        pos[0] = 1.52; pos[1] = 0.25; pos[2] = 1.09;
 
         //While is connected:
         while (simxGetConnectionId(clientID) != -1) {
@@ -426,8 +427,8 @@ int main(int argc, char* argv[]) {
             //setTargetSpeed(clientID, phiL, phiR);
             
             //Read current position:
-            simxFloat pos[3]; //[x,y,theta] in [cm cm rad]
-            getPosition(clientID, pos);
+            //simxFloat pos[3]; //[x,y,theta] in [cm cm rad]
+            //getPosition(clientID, pos);
 
             //Read simulation time of the last command:
             simxInt time = getSimTimeMs(clientID); //Simulation time in ms or 0 if sim is not running
@@ -440,13 +441,21 @@ int main(int argc, char* argv[]) {
             readOdometers(clientID, dPhiL, dPhiR);
             printf("dPhiL: %.2f dPhiR: %.2f\n", dPhiL*r, dPhiR*r);
 
+            // valores da odometria
             simxFloat delta_teta = Cal_delta_teta(dPhiL,dPhiR);
             simxFloat delta_s = Cal_delta_s(dPhiL,dPhiR);
-
             simxFloat teta = pos[2]+delta_teta;
             simxFloat delta_x = Cal_deta_x(delta_s,delta_teta,teta);
             simxFloat delta_y = Cal_deta_y(delta_s,delta_teta,teta);
+
+            // erro de odometria
+            Cal_grad_f_p(delta_s, teta, delta_teta);
+            Cal_grad_f_rl(delta_s, teta, delta_teta);
+            Cal_sigma( dPhiL,  dPhiR);
             
+            // passo de acao
+            //action(delta_x, delta_y, delta_teta);
+
             //Set new target speeds: robot going in a circle:
             simxFloat phiL = 5; //rad/s
             simxFloat phiR = 20; //rad/s
@@ -455,7 +464,6 @@ int main(int argc, char* argv[]) {
 
             //Let some time for V-REP do its work:
             extApi_sleepMs(2);
-
         }
         
         //Stop the robot and disconnect from V-Rep;

@@ -171,7 +171,7 @@ void action(float deltax, float deltay, float delta_teta){
 				
 				float pos_reg[3] = {newx+ni*TAM_CELL,newy+nj*TAM_CELL,newteta+nk*ANG_MIN};
 				float bel_reg = 0.0;
-
+				
 				for(int i=-tam_reg; i<=tam_reg; i++){
 					for(int j=-tam_reg; j<=tam_reg; j++){
 						for(int k=-tam_reg; k<=tam_reg; k++){
@@ -179,7 +179,7 @@ void action(float deltax, float deltay, float delta_teta){
 						}
 					}
 				}
-
+				
 				int pos_aux[3];	
 				convert_coord_to_ind(pos_aux,pos_reg[0],pos_reg[1],pos_reg[2]);
 				belief[pos_aux[0]][pos_aux[1]][pos_aux[2]] = bel_reg;
