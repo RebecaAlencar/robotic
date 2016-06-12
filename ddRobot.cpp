@@ -11,7 +11,7 @@
 #define PI 3.14
 extern "C" {
 #include "extApi.h"
-    /*	#include "extApiCustom.h" if you wanna use custom remote API functions! */
+    /*  #include "extApiCustom.h" if you wanna use custom remote API functions! */
 }
 
 // medidas do mapa em metros
@@ -83,14 +83,14 @@ simxInt getSimTimeMs(int clientID) { //In Miliseconds
 }
 
 simxFloat to180range(simxFloat angulo){
-	angulo = angulo*180.0/PI;
-	if(angulo <= -180){
-		angulo = angulo + 360.0;
+    angulo = angulo*180.0/PI;
+    if(angulo <= -180){
+        angulo = angulo + 360.0;
     }if(angulo >180){
          angulo = angulo - 360.0;
     }
     angulo = (PI*angulo)/180.0;
-	return angulo;
+    return angulo;
 }
 
 float to_positive_angle(float angle) {
@@ -143,7 +143,7 @@ inline double to_deg(double radians) {
 
 
 void nextGoal(){
-	goal = goal+1;
+    goal = goal+1;
     if (goal>7){
         goal =1;
     }
@@ -152,20 +152,20 @@ void nextGoal(){
 
 void motionControl(int clientID, simxFloat &phiL, simxFloat &phiR)
 {
-	
-	simxFloat v, omega, wR, wL;
-	simxFloat dx, dy, dtheta, atg, rho;
-	simxFloat theta, beta, alpha;
-	
+    
+    simxFloat v, omega, wR, wL;
+    simxFloat dx, dy, dtheta, atg, rho;
+    simxFloat theta, beta, alpha;
+    
     //Localizacao atual do robo [x, y, z]
     getPosition(clientID, pos);
-	
+    
     //Angulo atual do robo
     if(simxGetObjectOrientation(clientID, ddRobotHandle, -1, orientation, simx_opmode_oneshot_wait) > 0) {
         printf("Error reading robot orientation\n");
         return;
     }
-	
+    
     theta = orientation[2];
     
     //Computar dx, dy, rho, alpha e beta
@@ -181,10 +181,10 @@ void motionControl(int clientID, simxFloat &phiL, simxFloat &phiR)
     beta = (goals[goal][2])-theta - alpha;
     beta = to180range(beta);
 
-	v = k_rho*rho;
+    v = k_rho*rho;
 
     if (v<0.2) v = 0.2;
-	
+    
     omega = k_alpha*alpha + k_beta*(beta);
 
     wR = v + l*omega;
@@ -200,13 +200,13 @@ void motionControl(int clientID, simxFloat &phiL, simxFloat &phiR)
         if (abs(dtheta)>0.5){
             phiR = 2*dtheta; // proporcionalmente ao que falta
             phiL = -2*dtheta;
-		}
+        }
         else{
             phiR = 0;
             phiL = 0;
             state = 2;
-		}
-	}
+        }
+    }
 }
 
 
@@ -356,6 +356,23 @@ void action(float deltax, float deltay, float delta_teta){
     }
 }
 
+simxFloat Cal_delta_teta(simxFloat dPhiR, simxFloat dPhiL){
+    return (dPhiL*r - dPhiR*r)/b;
+}
+
+
+simxFloat Cal_delta_s(simxFloat dPhiR, simxFloat dPhiL){
+    return (dPhiL*r +dPhiR*r)/2;
+}
+
+simxFloat Cal_deta_x(simxFloat delta_s, simxFloat delta_teta, simxFloat teta){
+    return delta_s*cos(teta+(delta_teta/2));
+}
+
+simxFloat Cal_deta_y(simxFloat delta_s, simxFloat delta_teta, simxFloat teta){
+    return delta_s*sin(teta+(delta_teta/2));
+}
+
 int main(int argc, char* argv[]) {
 
     std::string ipAddr = V_REP_IP_ADDRESS;
@@ -368,13 +385,13 @@ int main(int argc, char* argv[]) {
     printf("Iniciando conexao com: %s...\n", ipAddr.c_str());
 
     int clientID = simxStart((simxChar*) (simxChar*) ipAddr.c_str(), portNb, true, true, 2000, 5);
-	
+    
     if (clientID != -1) {
         printf("Conexao efetuada\n");
         
-		simxFloat phiL = 0; //rad/s
+        simxFloat phiL = 0; //rad/s
         simxFloat phiR = 0; //rad/s
-		
+        
         //Get handles for robot parts, actuators and sensores:
         simxGetObjectHandle(clientID, "RobotFrame#", &ddRobotHandle, simx_opmode_oneshot_wait);
         simxGetObjectHandle(clientID, "LeftMotor#", &leftMotorHandle, simx_opmode_oneshot_wait);
@@ -397,17 +414,17 @@ int main(int argc, char* argv[]) {
         printf("Simulação iniciada.\n");
 
         // posicao inicial
-        //pos[0] = 150.0; pos[1] = 25.0; pos[2] = 0.0;
+        //pos[0] = 1.52; pos[1] = 0.25; pos[2] = 0.0;
 
         //While is connected:
         while (simxGetConnectionId(clientID) != -1) {
-			if(state == 2){
-				nextGoal();
-			}
+            if(state == 2){
+                nextGoal();
+            }
 
-			//motionControl(clientID, phiL, phiR);
-			//setTargetSpeed(clientID, phiL, phiR);
-			
+            //motionControl(clientID, phiL, phiR);
+            //setTargetSpeed(clientID, phiL, phiR);
+            
             //Read current position:
             simxFloat pos[3]; //[x,y,theta] in [cm cm rad]
             getPosition(clientID, pos);
@@ -416,18 +433,25 @@ int main(int argc, char* argv[]) {
             simxInt time = getSimTimeMs(clientID); //Simulation time in ms or 0 if sim is not running
             //stop the loop if simulation is has been stopped:
             if (time == 0) break;             
-            printf("Posicao: [%.2f %.2f %.2fº], time: %dms\n", pos[0], pos[1], to_deg(pos[2]), time);
+            printf("Posicao: [%.2f %.2f %.2fº], time: %dms\n", pos[0], pos[1],                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      (pos[2]), time);
             
             //Read current wheels angle variation:
             simxFloat dPhiL, dPhiR; //rad
             readOdometers(clientID, dPhiL, dPhiR);
             printf("dPhiL: %.2f dPhiR: %.2f\n", dPhiL*r, dPhiR*r);
+
+            simxFloat delta_teta = Cal_delta_teta(dPhiL,dPhiR);
+            simxFloat delta_s = Cal_delta_s(dPhiL,dPhiR);
+
+            simxFloat teta = pos[2]+delta_teta;
+            simxFloat delta_x = Cal_deta_x(delta_s,delta_teta,teta);
+            simxFloat delta_y = Cal_deta_y(delta_s,delta_teta,teta);
             
             //Set new target speeds: robot going in a circle:
             simxFloat phiL = 5; //rad/s
             simxFloat phiR = 20; //rad/s
             setTargetSpeed(clientID, phiL, phiR);
-			motionControl(clientID, phiL, phiR);
+            motionControl(clientID, phiL, phiR);
 
             //Let some time for V-REP do its work:
             extApi_sleepMs(2);
